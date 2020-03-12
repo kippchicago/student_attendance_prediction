@@ -7,8 +7,8 @@ recursive_loading: FALSE
 munging: TRUE
 logging: FALSE
 logging_level: INFO
-load_libraries: FALSE
-libraries: reshape2, plyr, tidyverse, stringr, lubridate
+load_libraries: TRUE
+libraries: tidyverse, silounloadr, kippcolors, janitor, lubridate, caret, broom, modelr, tidymodels, kknn, VGAM, prophet, greta, bayesplot, rstanarm, brms, tidybayes, loo
 as_factors: TRUE
 tables_type: tibble
 attach_internal_libraries: FALSE
