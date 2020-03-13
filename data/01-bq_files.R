@@ -1,43 +1,59 @@
 # pulls datasets from Big Query Database
-sy <- silounloadr::calc_academic_year(ymd("2020-06-07"), format = "firstyear")
+terms <- get_powerschool("terms") %>%
+  select(id,
+         abbreviation,
+         firstday,
+         lastday) %>%
+  collect()  %>%
+  filter(grepl("-", abbreviation)) %>%
+  group_by(id) %>%
+  filter(row_number(desc(lastday)) == 1) %>%
+  unique()
 
-ps_sy_termid <-
-  silounloadr::calc_ps_termid(sy) %>%
-  str_extract("\\d{2}") %>%
-  as.integer()
+attendance <-
+  get_powerschool("attendance") %>%
+  filter(att_mode_code == "ATT_ModeDaily") %>%
+  select(studentid, 
+         att_date,
+         att_comment, 
+         attendance_codeid
+  ) %>%
+  collect()
+
+attendance_code <- 
+  get_powerschool("attendance_code") %>%
+  mutate(att_code = if_else(att_code == "true", "T", att_code)) %>% 
+  select(att_code,
+         description,
+         id
+  ) %>%
+  collect()
 
 membership <- 
   get_powerschool("ps_membership_reg") %>% 
   select(studentid,
          schoolid,
          date = calendardate,
-         enrolled = studentmembership,
+         membership = studentmembership,
          grade_level,
          attendance = ATT_CalcCntPresentAbsent,
          yearid) %>%
-  filter(yearid >= 25) %>% 
-  collect()
-
-attendance <- 
-  get_powerschool("attendance") %>% 
-  filter(yearid >= 25,
-         att_mode_code == "ATT_ModeDaily") %>% 
-  collect()
-
-attendance_code <- 
-  get_powerschool("attendance_code") %>%
-  mutate(att_code = if_else(att_code == "true", "T", att_code)) %>% 
-  select(attendance_codeid = id,
-         att_code) %>% 
   collect()
 
 students <- 
   get_powerschool("students") %>% 
   select(studentid = id, 
          student_number,
+         lastfirst,
+         dob, 
          gender,
+         ethnicity, 
+         street,
+         city,
+         state,
+         zip,
+         geocode,
          entrydate,
          schoolentrydate,
-         districtentrydate,
-         geocode) %>%
+         schoolentrygradelevel) %>%
   collect()

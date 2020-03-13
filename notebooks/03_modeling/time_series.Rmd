@@ -1,0 +1,10 @@
+---
+title: "Time Series Models"
+output: html_notebook
+---
+
+
+```{r}
+plot(cars)
+```
+

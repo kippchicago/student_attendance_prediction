@@ -1,0 +1,133 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r set-up, include=FALSE}
+library(tidyverse)
+library(silounloadr)
+library(janitor)
+library(lubridate)
+
+options(gargle_oauth_email = "mberrien@kippchicago.org")
+bigrquery::bq_auth(path = "kipp-chicago-silo-2-aa786970aefd.json")
+```
+
+
+```{r parameters}
+SY_1920 <- silounloadr::calc_academic_year(ymd("2019-08-19"), format = "firstyear")
+
+CURRENT_FIRST_YEAR <- calc_academic_year(lubridate::today(),
+                                         format = "first_year")
+
+PS_TERMID_1920 <- calc_ps_termid(CURRENT_FIRST_YEAR)
+
+PS_YEARID_1920 <-
+  silounloadr::calc_ps_termid(SY_1920) %>%
+  str_extract("\\d{2}") %>%
+  as.integer()
+
+FIRST_DAY_SCHOOL_1920 <- terms %>%
+  filter(id == PS_TERMID_1920) %>% 
+  select(firstday)
+  
+LAST_DAY_SCHOOL_1920 <- terms %>%
+  filter(id == PS_TERMID_1920) %>% 
+  select(lastday)
+```
+
+
+Join `attendance` and `attendance_code` table
+```{r}
+student_daily_attendance <- 
+  
+  # this table incldes only days where students where not first marked as present
+  attendance %>%
+  
+  # This table adds the attendance codes (tardy, absent, suspension, etc.)
+  left_join(attendance_code,
+            by = c("attendance_codeid" = "id")) %>%
+  
+  # this table ensures that each student has a row for each day they were enrolled in school. 
+  # because attendance table only records "special circumstances", membership table is needed
+  # to figure out all days students were present. 
+  right_join(membership, 
+            by = c("studentid" = "studentid", 
+                   "att_date" = "date")) %>%
+  
+  # Identify whether att_code is enrolled, present, absent, or tardy for each student by day
+  mutate(enrolled0 = 1,
+         enrolled = if_else(att_code == "D" & !is.na(att_code), 0, enrolled0),
+         present0 = ifelse(is.na(att_code) | att_code == "", 1, 0),
+         present1 = ifelse(att_code %in%  c("A", "S"), 0, present0),
+         present2 = ifelse(att_code == "H", 0.5, present1),
+         present3 = ifelse(att_code %in% c("T", "E", "L", "I"), 1, present2),
+         present = ifelse(is.na(present2), 1, present3),
+         absent = (1 - present)*enrolled,
+         tardy = ifelse(att_code %in% "T", 1, 0)) %>%
+  
+    # Add additional student info
+  left_join(students,
+            by = c("studentid" = "studentid")
+            ) %>%
+  arrange(yearid, 
+          student_number, 
+          att_date) %>%
+  select(student_number,
+          studentid,
+          lastfirst,
+          dob,
+          gender,              
+          ethnicity,
+          grade_level,
+          schoolid,
+          att_date,
+          yearid,
+          street,
+          city,
+          state,             
+          zip,
+          schoolentrydate,     
+          schoolentrygradelevel,
+          enrolled,
+          present,
+          absent,
+          tardy
+         )
+
+```
+
+
+ADA = Average Daily Attendance
+```{r}
+student_yearly_ada <- 
+  student_daily_attendance %>% 
+  filter(yearid < CURRENT_FIRST_YEAR) %>%
+  group_by(yearid,
+           studentid, 
+           student_number) %>% 
+  summarize(enrolled = sum(enrolled),
+            absent = sum(absent),
+            year_end_atten_pct = 1 - (absent/enrolled)
+            )
+ 
+student_cum_ada <- 
+  student_daily_attendance %>%
+  
+  # only looking at students before the 19-20 school year
+  filter(yearid < CURRENT_FIRST_YEAR) %>%
+  group_by(yearid,
+           studentid, 
+           student_number) %>% 
+  arrange(student_number, 
+          att_date) %>%
+  mutate(cum_enrolled = cumsum(enrolled),
+         cum_absent = cumsum(absent),
+         running_ada = 1 - (cum_absent/cum_enrolled)) %>%
+  
+  # only keep records for when students were actually enrolled. 
+  filter(cum_enrolled > 0)
+```
+
+

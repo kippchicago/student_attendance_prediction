@@ -86,7 +86,7 @@ Now we calculate some quantities of interest:
 
 ```{r cumulative quantities of interest}
 yearly_ada <- student_att %>% 
-  filter(yearid < 28) %>%
+  filter(yearid < 29) %>%
   group_by(yearid,
            studentid) %>% 
   summarize(enrolled = sum(enrolled),
@@ -531,7 +531,7 @@ holdout_model_spec <- function(splits, model_type, formula, ...){
 
 
 holdout_model_spec(rs_data$splits[[1]], "linear", formula_0) #works!
-holdout_model_spec(rs_data$splits[[1]], "logistic", formula_0) 
+# holdout_model_spec(rs_data$splits[[1]], "logistic", formula_0) 
 
 
 x<-holdout_model_spec(rs_data$splits[[1]], "knn", formula_0, neighbors = 5)
@@ -552,7 +552,7 @@ holdout_model_splits <- function(data, type, formula, ...){
   out <-data$splits %>% 
     map(holdout_model_spec, type, formula, ...) 
 
-  out
+  out 
   }
 
 x<-holdout_model_splits(rs_data, "linear", formula_0)  
