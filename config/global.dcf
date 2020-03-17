@@ -2,14 +2,14 @@ version: 0.9.0
 data_loading: TRUE
 data_loading_header: TRUE
 data_ignore:
-cache_loading: TRUE
+cache_loading: FALSE
 recursive_loading: FALSE
-munging: TRUE
+munging: FALSE
 logging: FALSE
 logging_level: INFO
-load_libraries: TRUE
+load_libraries: FALSE
 libraries: tidyverse, silounloadr, kippcolors, janitor, lubridate, caret, broom, modelr, tidymodels, kknn, VGAM, prophet, greta, bayesplot, rstanarm, brms, tidybayes, loo
-as_factors: TRUE
+as_factors: FALSE
 tables_type: tibble
 attach_internal_libraries: FALSE
 cache_loaded_data:  TRUE
