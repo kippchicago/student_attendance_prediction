@@ -1,4 +1,8 @@
 # pulls datasets from Big Query Database
+
+options(gargle_oauth_email = "mberrien@kippchicago.org")
+bigrquery::bq_auth(path = "kipp-chicago-silo-2-aa786970aefd.json")
+
 terms <- get_powerschool("terms") %>%
   select(id,
          abbreviation,
