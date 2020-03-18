@@ -1,5 +1,5 @@
 ---
-title: "R Notebook"
+title: "Exploratory Data Analysis: Attendance Data"
 output: html_notebook
 ---
 
@@ -20,9 +20,11 @@ theme_set(theme_kipp_light())
 ```{r parameters}
 SY_1920 <- silounloadr::calc_academic_year(ymd("2019-08-19"), format = "firstyear")
 
+# Output: 2019
 CURRENT_FIRST_YEAR <- calc_academic_year(lubridate::today(),
                                          format = "first_year")
 
+# Output: 29
 PS_TERMID_1920 <- calc_ps_termid(CURRENT_FIRST_YEAR)
 
 PS_YEARID_1920 <-
@@ -39,7 +41,7 @@ LAST_DAY_SCHOOL_1920 <- terms %>%
   select(lastday)
 ```
 
-Join `attendance` and `attendance_code` table
+The "student_daily_attendance" table is produced by joining the `attendance`, `attendance_code` and `students` tables from powerschools. The end result is a table that contains all students who have enrolled in KIPP Chicago and taken classes from 2003 to today. Each row is one day for a specific student. The row notes if the student is enrolled and if they were present, absent or tardy.
 ```{r}
 student_daily_attendance <- 
   
@@ -131,10 +133,6 @@ student_daily_attendance <-
          exitcode, 
          exitcomment
          ) %>%
-  
-  # one entry only contains enrollment info and no identifying information.
-  filter(!is.na(student_number)
-         ) %>%
 
   # Change empty strings to NA to more easily identify them
   mutate(
@@ -147,13 +145,14 @@ student_daily_attendance <-
 
 ```
 
-
+The "student_identifying_info" table pulls together all identifying information for students in one place. This datframe is one row per student. 
 ```{r}
-student_identifying_info_ps <-
+student_identifying_info <-
   student_daily_attendance %>%
   select(student_number, 
          lastfirst,
          dob,
+         grade_level,
          gender,
          street,
          city,
@@ -165,7 +164,7 @@ student_identifying_info_ps <-
   arrange(dob)
 ```
 
-ADA = Average Daily Attendance
+This dataset shows us the end of year average daily attendance for each student. Each row represents one students ada for an entire school year. The number of rows that a student appears in in the dataset corresponds to the number of years the student has been with KIPP Chiago (Note: We have removed the current 19-20 school year).
 ```{r}
 student_yearly_ada <- 
   student_daily_attendance %>% 
@@ -178,7 +177,7 @@ student_yearly_ada <-
             year_end_atten_pct = 1 - (absent/enrolled))
 ```
 
-
+The "student_cum_ada" gives a running total of each students average daily attendance each day for each year. For example, you could filter for yearid == 28 (last school year), and check each childs average daily attendance at a specific date. 
 ```{r}
 student_cum_ada <- 
   student_daily_attendance %>%
@@ -195,7 +194,23 @@ student_cum_ada <-
          running_ada = 1 - (cum_absent/cum_enrolled)) %>%
   
   # only keep records for when students were actually enrolled. 
-  filter(cum_enrolled > 0)
+  filter(cum_enrolled > 0) %>%
+  
+  select(student_number, 
+         studentid, 
+         dob, 
+         gender, 
+         grade_level, 
+         schoolid, 
+         yearid,
+         sy, 
+         att_date, 
+         present, 
+         absent, 
+         cum_present = cum_enrolled, 
+         cum_absent, 
+         running_ada
+         )
 ```
 
 ## Exploratory Data Analysis
@@ -244,16 +259,25 @@ student_daily_attendance %>%
 Dataset is missing around 1.3% of data. Mostly for students in the dob, gender and address categories. 
 will search ASPEN to see if they can fill in this missing info. 
 ```{r}
-vis_miss(student_identifying_info_ps)
+vis_miss(student_identifying_info)
 ```
 There are 123 students with missing personal data. 
 
 ```{r}
 students_w_missing_ii_data <- 
-  student_identifying_info_ps %>% 
+  student_identifying_info %>% 
   filter(is.na(dob) | is.na(gender) | is.na(street) | is.na(city) | is.na(state))
 ```
 
+### Find current students with missing identifying information
+There are two current students with missing information. Student Number 50083869 and 50493973. I will check ASPEN to see if I can fill in the missing data by hand. 
+
+The remaining 121 students have either transferred or have graduated and we no longer have a way to access prior information (such as address, dob or gender). These 121 students will be dropped from the dataset.
+```{r}
+current_student_check <- 
+  students_w_missing_ii_data %>%
+  filter(exitcode != 2 & exitcode != 14 & exitcode != 31 & exitcode != 32 & exitcode != 33)
+```
 ## Next Steps
 
 1. Figure out if there is a pattern in missing data
